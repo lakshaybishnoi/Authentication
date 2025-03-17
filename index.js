@@ -1,89 +1,101 @@
-const express = require('express');
-const jwt = require('jsonwebtoken');
-const JWT_SECRET = "ramdomlakshay"
+const express = require("express");
+const jwt = require("jsonwebtoken");
+
+const JWT_SECRET = "kirat123123";
+
 const app = express();
 app.use(express.json());
 
 const users = [];
 
-app.post("/signup", function (req, res) {
-    const username = req.body.username;
-    const password = req.body.password;
+function logger(req, res, next) {
+    console.log(req.method + " request came");
+    next();
+}
 
+// localhost:3000
+app.get("/", function(req, res) {
+    res.sendFile(__dirname + "/public/index.html");
+})
+
+app.post("/signup", logger, function(req, res) {
+    const username = req.body.username
+    const password = req.body.password
     users.push({
         username: username,
         password: password
-    })    
-
-    res.json({
-        message: "You are signed up"
     })
 
-    console.log(users)
-    
+    // we should check if a user with this username already exists
+
+    res.json({
+        message: "You are signed in"
+    })
 })
 
-app.post("/signin", function(req, res) {
-    
+app.post("/signin", logger, function(req, res) {
     const username = req.body.username;
     const password = req.body.password;
 
-    // maps and filter
-    let foundUser = null;
-
-    for (let i = 0; i<users.length; i++) {
-        if (users[i].username == username && users[i].password == password) {
-            foundUser = users[i]
-        }
-    }
-
-    if (foundUser) {
-        const token = jwt.sign({
-            username: username,
-            password: password,
-            firstname,
-            lastName,
-            courses: []
-        }, JWT_SECRET) ;
-
-        // foundUser.token = token;
-        res.json({
-            token: token
-        })
-    } else {
-        res.status(403).send({
-            message: "Invalid username or password"
-        })
-    }
-    console.log(users)
-})
-
-app.get("/me", function(req, res) {
-    const token = req.headers.token // jwt
-    const decodedInformation = jwt.verify(token, JWT_SECRET);  // {username: "harkirat@gmail.com"}
-    const unAuthDecodedinfo = jwt.decode(token,);  // {username: "harkirat@gmail.com"}
-    const username = decodedInformation.username
     let foundUser = null;
 
     for (let i = 0; i < users.length; i++) {
-        if (users[i].username == username)  {
+        if (users[i].username === username && users[i].password === password) {
             foundUser = users[i]
         }
     }
 
-    if (foundUser) {
+    if (!foundUser) {
         res.json({
-            username: foundUser.username,
-            password: foundUser.password
+            message: "Credentials incorrect"
         })
+        return 
     } else {
+        const token = jwt.sign({
+            username: users[i].username
+        }, JWT_SECRET);
+        res.header("jwt", token);
+
+        res.header("random", "harkirat");
+
         res.json({
-            message: "token invalid"
+            token: token
         })
     }
-
-
 })
 
+function auth(req, res, next) {
+    const token = req.headers.token;
+    const decodedData = jwt.verify(token, JWT_SECRET);
 
-app.listen(3000);// that the http server is listening on port 3000
+    if (decodedData.username) {
+        // req = {status, headers...., username, password, userFirstName, random; ":123123"}
+        req.username = decodedData.username
+        next()
+    } else {
+        res.json({
+            message: "You are not logged in"
+        })
+    }
+}
+
+app.get("/me", logger, auth, function(req, res) {
+    // req = {status, headers...., username, password, userFirstName, random; ":123123"}
+    const currentUser = req.username;
+    // const token = req.headers.token;
+    // const decodedData = jwt.verify(token, JWT_SECRET);
+    // const currentUser = decodedData.username
+
+    for (let i = 0; i < users.length; i++) {
+        if (users[i].username === currentUser) {
+            foundUser = users[i]
+        }
+    }
+
+    res.json({
+        username: foundUser.username,
+        password: foundUser.password
+    })
+})
+
+app.listen(3000);
